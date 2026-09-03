@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Remember</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.11.3/p5.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body>
+  <div id="grain" aria-hidden="true"></div>
+  <div id="scanlines" aria-hidden="true"></div>
+  <div id="canvas-wrap" aria-hidden="true"></div>
+
+  <main id="ui" class="ui">
+    <section id="scene-1" class="scene scene-idle is-active" data-scene="1" aria-label="Idle">
+      <h1 class="idle-title">REMEMBER</h1>
+      <p class="idle-hint">Move closer to begin.</p>
+    </section>
+
+    <section id="scene-2" class="scene" data-scene="2" hidden>
+      <p class="meta-label">Archive // Gate 02</p>
+      <h2 class="scene-title reveal">Memory Entrance</h2>
+      <p class="scene-lead">Find something you remember saving.</p>
+      <div class="option-grid" role="list">
+        <button type="button" class="option-btn" data-memory="photograph">A photograph</button>
+        <button type="button" class="option-btn" data-memory="voice">A voice message</button>
+        <button type="button" class="option-btn" data-memory="conversation">A conversation</button>
+        <button type="button" class="option-btn" data-memory="link">A saved link or article</button>
+        <button type="button" class="option-btn" data-memory="other" data-opens-custom="true">Something else…</button>
+      </div>
+      <div id="custom-panel" class="custom-panel" hidden>
+        <label class="field">
+          <span>What are you trying to find? <em>(required)</em></span>
+          <textarea id="memory-input" maxlength="120" rows="2" placeholder="Describe something you remember saving…"></textarea>
+          <span class="counter" id="memory-count">0 / 120</span>
+        </label>
+        <label class="field">
+          <span>Why does this memory matter to you? <em>(optional)</em></span>
+          <textarea id="significance-input" maxlength="200" rows="2" placeholder="A person, moment or reason…"></textarea>
+          <span class="counter" id="significance-count">0 / 200</span>
+        </label>
+        <p id="custom-error" class="error" hidden>Enter at least 3 characters.</p>
+        <div class="row-actions">
+          <button type="button" class="ghost-btn" id="custom-cancel">Cancel</button>
+          <button type="button" class="primary-btn" id="custom-continue">Continue</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="scene-3" class="scene" data-scene="3" hidden>
+      <p class="meta-label">Archive // Gate 03</p>
+      <h2 class="scene-title">What do you remember about it?</h2>
+      <p class="scene-lead">Select one or more clues. Tags can be removed.</p>
+      <div id="clue-types" class="chip-row"></div>
+      <div id="clue-secondary" class="secondary-panel" hidden></div>
+      <div id="keyword-panel" class="field" hidden>
+        <label for="keyword-input">Keyword</label>
+        <input id="keyword-input" maxlength="80" placeholder="A word, name or fragment…" />
+      </div>
+      <div id="clue-tags" class="tag-row" aria-live="polite"></div>
+      <div class="row-actions">
+        <button type="button" class="ghost-btn" id="clues-back">Go Back</button>
+        <button type="button" class="primary-btn" id="begin-search">Begin Search</button>
+      </div>
+    </section>
+
+    <section id="scene-4" class="scene scene-map" data-scene="4" hidden>
+      <p class="meta-label map-label">Memory Map // live nodes</p>
+      <div id="node-inspect" class="inspect-card" hidden></div>
+    </section>
+
+    <aside id="filter-panel" class="filter-panel" hidden>
+      <p class="meta-label">Filter // active clues</p>
+      <div id="filter-clues" class="tag-row compact"></div>
+      <p class="filter-note" id="filter-note">Inspect nodes. Refine or expand the field.</p>
+      <div class="stack-actions">
+        <button type="button" class="primary-btn" id="refine-search">Refine Search</button>
+        <button type="button" class="ghost-btn" id="expand-search">Expand Search</button>
+        <button type="button" class="primary-btn" id="retrieve-record">Retrieve Record</button>
+      </div>
+    </aside>
+
+    <section id="scene-6" class="scene scene-search" data-scene="6" hidden>
+      <p class="meta-label">Retrieval // in progress</p>
+      <p id="search-status" class="search-status">Searching local files…</p>
+      <p class="search-sub">No linear progress. Paths are being reconstructed.</p>
+    </section>
+
+    <section id="scene-8" class="scene scene-preview" data-scene="8" hidden>
+      <p class="meta-label" id="result-state-label">Result</p>
+      <h2 class="scene-title" id="result-title">Result</h2>
+      <p class="scene-lead" id="result-subtype"></p>
+      <p class="confidence" id="result-confidence"></p>
+      <div id="preview-stage" class="preview-stage"></div>
+      <div id="similar-choices" class="similar-choices" hidden></div>
+      <button type="button" class="primary-btn" id="continue-from-preview">Continue</button>
+    </section>
+
+    <section id="scene-9" class="scene scene-reflect" data-scene="9" hidden>
+      <p class="meta-label">Reflection</p>
+      <h2 class="scene-title">Is this the memory you were looking for?</h2>
+      <div class="option-grid">
+        <button type="button" class="option-btn" data-response="yes">Yes, this is it</button>
+        <button type="button" class="option-btn" data-response="close">It is close, but not the same</button>
+        <button type="button" class="option-btn" data-response="no">No, I still cannot find it</button>
+      </div>
+      <p id="interpretation" class="interpretation" hidden></p>
+      <button type="button" class="primary-btn" id="continue-to-receipt" hidden>Generate Receipt</button>
+    </section>
+
+    <section id="scene-10" class="scene scene-receipt" data-scene="10" hidden>
+      <p class="meta-label">Memory Receipt</p>
+      <div id="receipt-screen" class="receipt-mount"></div>
+      <div class="row-actions receipt-actions">
+        <button type="button" class="primary-btn" id="print-receipt">Print Receipt</button>
+        <button type="button" class="ghost-btn" id="save-receipt">Save as Image</button>
+        <button type="button" class="ghost-btn" id="search-again">Search Again</button>
+        <button type="button" class="ghost-btn" id="finish">Finish</button>
+      </div>
+    </section>
+
+    <section id="scene-11" class="scene scene-print" data-scene="11" hidden>
+      <p class="print-status">Preparing memory record…</p>
+      <div id="print-animation" class="receipt-mount print-motion"></div>
+    </section>
+
+    <section id="scene-12" class="scene scene-archive" data-scene="12" hidden>
+      <p class="archive-copy">You can keep the record.<br />The memory may still be elsewhere.</p>
+    </section>
+
+    <section id="scene-13" class="scene scene-reset" data-scene="13" hidden>
+      <p class="reset-copy">Someone else may now begin searching.</p>
+    </section>
+  </main>
+
+  <div id="print-receipt-root" class="print-only"></div>
+
+  <script src="data.js"></script>
+  <script src="audio.js"></script>
+  <script src="receipt.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
