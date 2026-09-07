@@ -79,13 +79,51 @@ textarea:focus-visible {
   pointer-events: none;
 }
 
+.back-btn {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  z-index: 6;
+  pointer-events: auto;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 10px 16px;
+  background: transparent;
+  border: 1px solid var(--accent);
+  color: var(--fg);
+  letter-spacing: 0.2em;
+  font-size: 13px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.back-btn:hover:not(:disabled) {
+  border-color: var(--fg);
+  background: rgba(243, 241, 236, 0.04);
+}
+
+.back-btn:active:not(:disabled) {
+  border-color: var(--fg);
+  background: rgba(243, 241, 236, 0.1);
+}
+
+.back-btn:focus-visible {
+  outline: 1px solid var(--fg);
+  outline-offset: 3px;
+}
+
+.back-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
 .scene {
   position: absolute;
   inset: 0;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 8vh 8vw;
+  padding: 96px 8vw 8vh;
   pointer-events: auto;
   max-width: 920px;
 }
@@ -106,7 +144,7 @@ textarea:focus-visible {
 
 .scene-map {
   justify-content: flex-start;
-  padding: 4vh 4vw;
+  padding: 96px 4vw 4vh;
   pointer-events: none;
 }
 
@@ -114,7 +152,7 @@ textarea:focus-visible {
 .scene-receipt {
   max-width: 1080px;
   justify-content: flex-start;
-  padding-top: 6vh;
+  padding-top: 96px;
   overflow: auto;
 }
 
@@ -555,6 +593,7 @@ textarea {
   #grain,
   #scanlines,
   .ui,
+  .back-btn,
   .filter-panel,
   .receipt-actions {
     display: none !important;
@@ -589,6 +628,11 @@ textarea {
 }
 
 @media (min-width: 2200px) {
+  .back-btn {
+    top: 24px;
+    left: 32px;
+  }
+
   .scene {
     padding-left: 10vw;
   }
@@ -599,6 +643,11 @@ textarea {
 }
 
 @media (max-width: 900px) {
+  .back-btn {
+    top: 12px;
+    left: 12px;
+  }
+
   .filter-panel {
     position: absolute;
     top: auto;

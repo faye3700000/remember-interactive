@@ -21,9 +21,16 @@ let lastMove = 0;
 let idleResetTimer = null;
 let searchTimer = null;
 let archiveTimer = null;
+let mapIntroTimer = null;
+let printTimer = null;
+let resetTimer = null;
 let reduceMotion = false;
 let subtypeCycle = 0;
 let approachArmed = false;
+let sceneHistory = [];
+let navLocked = false;
+let printDialogueOpen = false;
+let lastRecordedScene = 1;
 
 function resetAppState() {
   appState.currentScene = 1;
@@ -40,6 +47,8 @@ function resetAppState() {
   appState.forcedMain = null;
   appState.forcedSubtype = null;
   appState.nodesInspectedSet = new Set();
+  sceneHistory = [];
+  lastRecordedScene = 1;
   const mem = document.getElementById("memory-input");
   const sig = document.getElementById("significance-input");
   const key = document.getElementById("keyword-input");
@@ -52,6 +61,115 @@ function resetAppState() {
   const sigCount = document.getElementById("significance-count");
   if (memCount) memCount.textContent = "0 / 120";
   if (sigCount) sigCount.textContent = "0 / 200";
+  document.querySelectorAll("[data-memory]").forEach((b) => b.setAttribute("aria-pressed", "false"));
+}
+
+function cancelSceneTimers(scene) {
+  if (scene === 4 || scene === 7) clearTimeout(mapIntroTimer);
+  if (scene === 6) {
+    clearTimeout(searchTimer);
+    searchTimer = null;
+    if (mapSystem) mapSystem.searching = false;
+  }
+  if (scene === 11) {
+    clearTimeout(printTimer);
+    printTimer = null;
+  }
+  if (scene === 12) {
+    clearTimeout(archiveTimer);
+    archiveTimer = null;
+  }
+  if (scene === 13) {
+    clearTimeout(resetTimer);
+    resetTimer = null;
+  }
+}
+
+function recordHistory(fromScene, toScene) {
+  if (fromScene == null || toScene == null) return;
+  if (fromScene === toScene) return;
+  if (fromScene === 13) return;
+  const last = sceneHistory[sceneHistory.length - 1];
+  if (last === fromScene) return;
+  sceneHistory.push(fromScene);
+}
+
+function updateBackButton() {
+  const btn = document.getElementById("back-btn");
+  if (!btn) return;
+  const scene = appState.currentScene;
+  const show = scene !== 1 && scene !== 13;
+  btn.hidden = !show;
+  btn.disabled = navLocked || !show;
+}
+
+function closeOpenPanels() {
+  const custom = document.getElementById("custom-panel");
+  const secondary = document.getElementById("clue-secondary");
+  const keyword = document.getElementById("keyword-panel");
+  let closed = false;
+  if (custom && !custom.hidden) {
+    custom.hidden = true;
+    closed = true;
+  }
+  if (secondary && !secondary.hidden) {
+    secondary.hidden = true;
+    closed = true;
+  }
+  if (keyword && !keyword.hidden) {
+    keyword.hidden = true;
+    closed = true;
+  }
+  return closed;
+}
+
+function lockNav(ms) {
+  navLocked = true;
+  updateBackButton();
+  setTimeout(() => {
+    navLocked = false;
+    updateBackButton();
+  }, ms || 320);
+}
+
+function invalidateAfter(level) {
+  if (level === "memory" || level === "clues") {
+    appState.currentResult = null;
+    appState.visitorResponse = null;
+    appState.receiptId = null;
+    appState.searchDurationMs = null;
+    appState.forcedMain = null;
+    appState.forcedSubtype = null;
+  }
+  if (level === "memory") {
+    appState.searchMode = null;
+  }
+}
+
+function goBack() {
+  if (navLocked) return;
+  if (printDialogueOpen) return;
+  const scene = appState.currentScene;
+  if (scene === 1 || scene === 13) return;
+  if (closeOpenPanels()) {
+    AudioEngine.blip();
+    return;
+  }
+  lockNav(320);
+  AudioEngine.blip();
+  cancelSceneTimers(scene);
+  let target = sceneHistory.pop();
+  while (target === scene) target = sceneHistory.pop();
+  if (scene === 6) target = 5;
+  else if (scene === 7) target = 5;
+  else if (scene === 8 && (target === 6 || target == null)) target = 7;
+  else if (scene === 11) target = 10;
+  else if (scene === 12) target = 10;
+  if (target == null) {
+    const fallback = { 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 5, 8: 7, 9: 8, 10: 9, 11: 10, 12: 10 };
+    target = fallback[scene] || 1;
+  }
+  goToScene(target, { fromBack: true });
 }
 
 function bumpIdle() {
@@ -71,15 +189,19 @@ function showSceneEl(id, on) {
 
 function goToScene(n, opts) {
   const options = opts || {};
-  clearTimeout(searchTimer);
-  clearTimeout(archiveTimer);
-  if (n === 7) n = 8;
-  if (n >= 3 && !appState.selectedMemory) {
+  const leaving = appState.currentScene;
+  if (leaving !== n) cancelSceneTimers(leaving);
+  if (n >= 3 && !appState.selectedMemory && !options.fromBack) {
     appState.selectedMemory = { ...MEMORY_PRESETS.photograph };
   }
+  if (!options.fromBack && !options.skipHistory) {
+    recordHistory(leaving, n);
+  }
+  lastRecordedScene = n;
   appState.currentScene = n;
   for (let i = 1; i <= 13; i += 1) showSceneEl(`scene-${i}`, false);
   if (n === 4 || n === 5) showSceneEl("scene-4", true);
+  else if (n === 7 || n === 8) showSceneEl("scene-8", true);
   else if (document.getElementById(`scene-${n}`)) showSceneEl(`scene-${n}`, true);
 
   const filter = document.getElementById("filter-panel");
@@ -88,27 +210,43 @@ function goToScene(n, opts) {
 
   if (n === 1) {
     AudioEngine.setMode("idle");
-    if (mapSystem) mapSystem.clear();
+    if (!options.fromBack && mapSystem) mapSystem.clear();
+    if (options.fromBack && mapSystem) mapSystem.searching = false;
+  } else if (n === 2) {
+    restoreEntrance();
+  } else if (n === 3) {
+    restoreClues();
   } else if (n === 4 || n === 5) {
     if (mapSystem && !mapSystem.nodes.length) {
       mapSystem.spawn(createArchiveNodes(188, appState.selectedClues, false));
     }
-    AudioEngine.setMode(appState.searchMode === "expand" ? "expand" : "map");
+    if (mapSystem) mapSystem.searching = false;
+    AudioEngine.setMode(appState.searchMode === "expand" ? "expand" : appState.searchMode === "refine" ? "quiet" : "map");
     renderFilterClues();
   } else if (n === 6) {
     if (mapSystem && !mapSystem.nodes.length) {
       mapSystem.spawn(createArchiveNodes(188, appState.selectedClues, false));
     }
-    AudioEngine.setMode("search");
-    startSearchSequence();
-  } else if (n === 8) {
+    if (options.fromBack) {
+      if (mapSystem) mapSystem.searching = false;
+      AudioEngine.setMode("map");
+    } else {
+      AudioEngine.setMode("search");
+      startSearchSequence();
+    }
+  } else if (n === 7 || n === 8) {
     ensureResult();
     renderPreview();
     AudioEngine.setMode("quiet");
+    if (n === 7 && !options.fromBack) {
+      clearTimeout(mapIntroTimer);
+      mapIntroTimer = setTimeout(() => {
+        if (appState.currentScene === 7) goToScene(8);
+      }, reduceMotion ? 200 : 900);
+    }
   } else if (n === 9) {
     AudioEngine.setMode("reflect");
-    document.getElementById("interpretation").hidden = true;
-    document.getElementById("continue-to-receipt").hidden = true;
+    restoreReflection();
   } else if (n === 10) {
     finalizeReceipt();
     Receipt.mount(appState, document.getElementById("receipt-screen"), document.getElementById("print-receipt-root"));
@@ -118,14 +256,60 @@ function goToScene(n, opts) {
     archiveTimer = setTimeout(() => goToScene(13), reduceMotion ? 4000 : 12000);
   } else if (n === 13) {
     AudioEngine.fadeOut(2);
-    setTimeout(() => {
+    resetTimer = setTimeout(() => {
       resetAppState();
       if (mapSystem) mapSystem.clear();
-      goToScene(1);
+      goToScene(1, { skipHistory: true });
     }, reduceMotion ? 1200 : 2800);
   }
 
+  updateBackButton();
   if (!options.skipIdle) bumpIdle();
+}
+
+function restoreEntrance() {
+  const selected = appState.selectedMemory;
+  document.querySelectorAll("[data-memory]").forEach((b) => {
+    const id = b.getAttribute("data-memory");
+    const pressed = !!(selected && ((id === "other" && selected.id === "other") || selected.id === id));
+    b.setAttribute("aria-pressed", pressed ? "true" : "false");
+  });
+  const mem = document.getElementById("memory-input");
+  const sig = document.getElementById("significance-input");
+  const panel = document.getElementById("custom-panel");
+  if (selected && selected.id === "other") {
+    mem.value = selected.label || "";
+    panel.hidden = false;
+  } else if (panel) {
+    panel.hidden = true;
+  }
+  sig.value = appState.personalSignificance || "";
+  document.getElementById("memory-count").textContent = `${charCount(mem.value)} / 120`;
+  document.getElementById("significance-count").textContent = `${charCount(sig.value)} / 200`;
+}
+
+function restoreClues() {
+  renderClueTypes();
+  renderTags();
+  const key = document.getElementById("keyword-input");
+  if (key) key.value = appState.selectedClues.keyword || "";
+}
+
+function restoreReflection() {
+  const p = document.getElementById("interpretation");
+  const cont = document.getElementById("continue-to-receipt");
+  if (appState.visitorResponse) {
+    p.hidden = false;
+    p.textContent = INTERPRETATIONS[appState.visitorResponse];
+    cont.hidden = false;
+    document.querySelectorAll("[data-response]").forEach((b) => {
+      b.setAttribute("aria-pressed", b.getAttribute("data-response") === appState.visitorResponse ? "true" : "false");
+    });
+  } else {
+    p.hidden = true;
+    cont.hidden = true;
+    document.querySelectorAll("[data-response]").forEach((b) => b.setAttribute("aria-pressed", "false"));
+  }
 }
 
 function ensureResult() {
@@ -164,7 +348,7 @@ function startSearchSequence() {
       if (mapSystem) mapSystem.searching = false;
       appState.searchDurationMs = Date.now() - appState.searchStartedAt;
       ensureResult();
-      goToScene(8);
+      goToScene(7);
     }
   };
   searchTimer = setTimeout(tick, step);
@@ -221,6 +405,7 @@ function openSecondary(id) {
     b.addEventListener("click", () => {
       AudioEngine.blip();
       appState.selectedClues[id] = opt;
+      invalidateAfter("clues");
       renderClueTypes();
       renderTags();
       openSecondary(id);
@@ -240,6 +425,7 @@ function renderTags() {
     tag.innerHTML = `${label ? label.label : k}: ${Receipt.esc(v)} <button type="button" aria-label="Remove">×</button>`;
     tag.querySelector("button").addEventListener("click", () => {
       delete appState.selectedClues[k];
+      invalidateAfter("clues");
       renderClueTypes();
       renderTags();
     });
@@ -341,6 +527,11 @@ function selectCandidate(id) {
 }
 
 function bindUi() {
+  document.getElementById("back-btn").addEventListener("click", (e) => {
+    e.preventDefault();
+    goBack();
+  });
+
   document.querySelectorAll("[data-memory]").forEach((btn) => {
     btn.addEventListener("click", () => {
       AudioEngine.startFromGesture();
@@ -351,11 +542,11 @@ function bindUi() {
         document.getElementById("memory-input").focus();
         return;
       }
-      appState.selectedMemory = { ...MEMORY_PRESETS[id] };
-      appState.personalSignificance = "";
+      const next = { ...MEMORY_PRESETS[id] };
+      const changed = !appState.selectedMemory || appState.selectedMemory.id !== next.id;
+      appState.selectedMemory = next;
+      if (changed) invalidateAfter("memory");
       goToScene(3);
-      renderClueTypes();
-      renderTags();
     });
   });
 
@@ -363,10 +554,10 @@ function bindUi() {
     document.getElementById("custom-panel").hidden = true;
   });
   document.getElementById("custom-continue").addEventListener("click", () => {
+    const prev = appState.selectedMemory && appState.selectedMemory.label;
     if (memoryFromCustom()) {
+      if (prev !== appState.selectedMemory.label) invalidateAfter("memory");
       goToScene(3);
-      renderClueTypes();
-      renderTags();
     }
   });
 
@@ -377,22 +568,26 @@ function bindUi() {
   });
   sig.addEventListener("input", () => {
     document.getElementById("significance-count").textContent = `${charCount(sig.value)} / 200`;
+    appState.personalSignificance = sig.value.trim();
   });
 
   document.getElementById("keyword-input").addEventListener("change", (e) => {
     const v = e.target.value.trim();
+    const prev = appState.selectedClues.keyword || "";
     if (v) appState.selectedClues.keyword = v;
     else delete appState.selectedClues.keyword;
+    if (v !== prev) invalidateAfter("clues");
     renderTags();
   });
 
-  document.getElementById("clues-back").addEventListener("click", () => goToScene(2));
+  document.getElementById("clues-back").addEventListener("click", () => goBack());
   document.getElementById("begin-search").addEventListener("click", () => {
     AudioEngine.blip();
     appState.searchStartedAt = Date.now();
     if (mapSystem) mapSystem.clear();
     goToScene(4);
-    setTimeout(() => {
+    clearTimeout(mapIntroTimer);
+    mapIntroTimer = setTimeout(() => {
       if (appState.currentScene === 4) goToScene(5);
     }, reduceMotion ? 400 : 1800);
   });
@@ -416,7 +611,10 @@ function bindUi() {
     goToScene(6);
   });
 
-  document.getElementById("continue-from-preview").addEventListener("click", () => goToScene(9));
+  document.getElementById("continue-from-preview").addEventListener("click", () => {
+    if (appState.currentScene === 7) goToScene(8);
+    else goToScene(9);
+  });
   document.querySelectorAll("[data-response]").forEach((b) => {
     b.addEventListener("click", () => {
       AudioEngine.blip();
@@ -444,17 +642,16 @@ function bindUi() {
 
 function printSequence() {
   AudioEngine.printSound();
-  appState.currentScene = 11;
-  showSceneEl("scene-10", false);
-  showSceneEl("scene-11", true);
+  goToScene(11);
   const html = Receipt.render(appState);
   document.getElementById("print-animation").innerHTML = html;
   document.getElementById("print-receipt-root").innerHTML = html;
   const delay = reduceMotion ? 400 : 2600;
-  setTimeout(() => {
+  clearTimeout(printTimer);
+  printTimer = setTimeout(() => {
+    if (appState.currentScene !== 11) return;
+    printDialogueOpen = true;
     window.print();
-    showSceneEl("scene-11", false);
-    goToScene(12);
   }, delay);
 }
 
@@ -484,6 +681,11 @@ function bindApproach() {
 
 function bindShortcuts() {
   window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      goBack();
+      return;
+    }
     if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) return;
     const k = e.key;
     if (k >= "1" && k <= "9") {
@@ -491,11 +693,7 @@ function bindShortcuts() {
       if (n >= 4 && mapSystem && !mapSystem.nodes.length) {
         mapSystem.spawn(createArchiveNodes(188, appState.selectedClues, false));
       }
-      if (n >= 8) ensureResult();
-      if (n === 3) {
-        renderClueTypes();
-        renderTags();
-      }
+      if (n >= 7) ensureResult();
       goToScene(n);
       return;
     }
@@ -551,7 +749,7 @@ const sketch = (p) => {
         const col = (region + 0.5) / PLATFORMS.length;
         return Object.assign(n, {
           x: col * w + (p.random() - 0.5) * (w / PLATFORMS.length) * 0.8,
-          y: p.random(60, h - 40),
+          y: p.random(110, h - 40),
           vx: (p.random() - 0.5) * 0.25,
           vy: (p.random() - 0.5) * 0.25,
           r: 3.4 + n.similarity * 4.8,
@@ -679,11 +877,11 @@ const sketch = (p) => {
     p5.noFill();
     PLATFORMS.forEach((name, i) => {
       const x = ((i + 0.5) / PLATFORMS.length) * p5.width;
-      p5.line(x, 36, x, p5.height - 20);
+      p5.line(x, 88, x, p5.height - 20);
       p5.noStroke();
       p5.fill(96, 119, 132);
       p5.textSize(10);
-      p5.text(name, x - 22, 24);
+      p5.text(name, x - 22, 78);
       p5.stroke(96, 119, 132, 70);
     });
 
@@ -704,7 +902,7 @@ const sketch = (p) => {
         n.x += n.vx;
         n.y += n.vy;
         if (n.x < 0 || n.x > p5.width) n.vx *= -1;
-        if (n.y < 40 || n.y > p5.height) n.vy *= -1;
+        if (n.y < 100 || n.y > p5.height) n.vy *= -1;
       }
       if (mapSystem.searching) {
         n.x += (p5.width / 2 - n.x) * 0.012;
@@ -749,6 +947,14 @@ function init() {
   bindUi();
   bindApproach();
   bindShortcuts();
+  updateBackButton();
+  window.addEventListener("beforeprint", () => {
+    printDialogueOpen = true;
+  });
+  window.addEventListener("afterprint", () => {
+    printDialogueOpen = false;
+    if (appState.currentScene === 11) goToScene(12);
+  });
   new p5(sketch);
   ["pointerdown", "keydown", "touchstart", "mousemove", "touchmove"].forEach((ev) => {
     window.addEventListener(ev, () => bumpIdle(), { passive: true });
