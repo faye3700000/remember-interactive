@@ -31,6 +31,9 @@
         <button type="button" class="option-btn" data-memory="link">A saved link or article</button>
         <button type="button" class="option-btn" data-memory="other" data-opens-custom="true">Something else…</button>
       </div>
+      <div class="row-actions">
+        <button type="button" class="ghost-btn" id="entrance-back">Go Back</button>
+      </div>
       <div id="custom-panel" class="custom-panel" hidden>
         <label class="field">
           <span>What are you trying to find? <em>(required)</em></span>
@@ -60,6 +63,10 @@
         <label for="keyword-input">Keyword</label>
         <input id="keyword-input" maxlength="80" placeholder="A word, name or fragment…" />
       </div>
+      <div id="custom-clue-panel" class="field" hidden>
+        <label for="custom-clue-input">Custom</label>
+        <input id="custom-clue-input" maxlength="80" placeholder="Type a clue you remember…" />
+      </div>
       <div id="clue-tags" class="tag-row" aria-live="polite"></div>
       <div class="row-actions">
         <button type="button" class="ghost-btn" id="clues-back">Go Back</button>
@@ -68,7 +75,12 @@
     </section>
 
     <section id="scene-4" class="scene scene-map" data-scene="4" hidden>
-      <p class="meta-label map-label">Memory Map // live nodes</p>
+      <div class="map-chrome">
+        <p class="meta-label map-label">Memory Map // live nodes</p>
+        <p id="map-hint" class="map-hint">SCROLL TO ZOOM · DRAG TO MOVE · SELECT A NODE TO INSPECT</p>
+        <p id="zoom-indicator" class="zoom-indicator">ZOOM 85%</p>
+      </div>
+      <button type="button" id="reset-view" class="reset-view-btn">RESET VIEW</button>
       <div id="node-inspect" class="inspect-card" hidden></div>
     </section>
 
@@ -141,6 +153,7 @@
   <script src="data.js"></script>
   <script src="audio.js"></script>
   <script src="receipt.js"></script>
+  <script src="visuals.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

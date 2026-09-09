@@ -1,7 +1,8 @@
 :root {
-  --bg: #202224;
-  --fg: #f3f1ec;
-  --accent: #607784;
+  --bg: #f3f1ec;
+  --fg: #000000;
+  --muted: #c4c4c4;
+  --accent: #dd9c33;
   --font: "IBM Plex Mono", "SFMono-Regular", "Menlo", monospace;
 }
 
@@ -46,6 +47,12 @@ textarea:focus-visible {
   width: 100%;
   height: 100%;
   z-index: 0;
+  pointer-events: none;
+}
+
+body.map-exploring #canvas-wrap,
+body.map-exploring #canvas-wrap canvas {
+  pointer-events: auto;
 }
 
 #grain,
@@ -89,7 +96,7 @@ textarea:focus-visible {
   min-height: 44px;
   padding: 10px 16px;
   background: transparent;
-  border: 1px solid var(--accent);
+  border: 1px solid var(--muted);
   color: var(--fg);
   letter-spacing: 0.2em;
   font-size: 13px;
@@ -98,17 +105,17 @@ textarea:focus-visible {
 }
 
 .back-btn:hover:not(:disabled) {
-  border-color: var(--fg);
-  background: rgba(243, 241, 236, 0.04);
+  border-color: var(--accent);
+  background: rgba(221, 156, 51, 0.08);
 }
 
 .back-btn:active:not(:disabled) {
-  border-color: var(--fg);
-  background: rgba(243, 241, 236, 0.1);
+  border-color: var(--accent);
+  background: rgba(221, 156, 51, 0.16);
 }
 
 .back-btn:focus-visible {
-  outline: 1px solid var(--fg);
+  outline: 1px solid var(--accent);
   outline-offset: 3px;
 }
 
@@ -148,6 +155,58 @@ textarea:focus-visible {
   pointer-events: none;
 }
 
+.map-chrome {
+  pointer-events: none;
+  max-width: 52vw;
+}
+
+.map-hint,
+.zoom-indicator {
+  margin: 0 0 6px;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.map-hint {
+  transition: opacity 0.8s linear;
+}
+
+.reset-view-btn {
+  pointer-events: auto;
+  position: fixed;
+  top: 20px;
+  left: 148px;
+  z-index: 6;
+  min-height: 44px;
+  padding: 10px 14px;
+  background: transparent;
+  border: 1px solid var(--muted);
+  letter-spacing: 0.16em;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.reset-view-btn:hover {
+  border-color: var(--accent);
+}
+
+.reset-view-btn:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 3px;
+}
+
+body.map-exploring #canvas-wrap {
+  touch-action: none;
+  user-select: none;
+  cursor: grab;
+}
+
+body.map-exploring #canvas-wrap.is-panning {
+  cursor: grabbing;
+}
+
 .scene-preview,
 .scene-receipt {
   max-width: 1080px;
@@ -161,7 +220,7 @@ textarea:focus-visible {
   font-size: 11px;
   letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: var(--accent);
+  color: var(--muted);
 }
 
 .idle-title {
@@ -176,7 +235,7 @@ textarea:focus-visible {
   margin-top: 1.4rem;
   font-size: 13px;
   letter-spacing: 0.18em;
-  color: var(--accent);
+  color: var(--muted);
 }
 
 .scene-title {
@@ -187,7 +246,7 @@ textarea:focus-visible {
 
 .scene-lead {
   margin: 0 0 2rem;
-  color: var(--accent);
+  color: var(--muted);
   max-width: 42ch;
 }
 
@@ -202,7 +261,7 @@ textarea:focus-visible {
 .ghost-btn {
   pointer-events: auto;
   background: transparent;
-  border: 1px solid var(--accent);
+  border: 1px solid var(--muted);
   padding: 12px 16px;
   text-align: left;
   cursor: pointer;
@@ -214,16 +273,24 @@ textarea:focus-visible {
   text-align: center;
 }
 
+.primary-btn {
+  border-color: var(--accent);
+}
+
 .option-btn:hover,
 .primary-btn:hover,
 .option-btn[aria-pressed="true"] {
-  border-color: var(--fg);
-  background: rgba(243, 241, 236, 0.04);
+  border-color: var(--accent);
+  background: rgba(221, 156, 51, 0.08);
 }
 
 .ghost-btn {
   border-color: transparent;
-  border-bottom: 1px solid var(--accent);
+  border-bottom: 1px solid var(--muted);
+}
+
+.ghost-btn:hover {
+  border-bottom-color: var(--accent);
 }
 
 .row-actions,
@@ -241,7 +308,7 @@ textarea:focus-visible {
 .custom-panel {
   margin-top: 1.6rem;
   max-width: 560px;
-  border: 1px solid var(--accent);
+  border: 1px solid var(--muted);
   padding: 18px;
 }
 
@@ -254,14 +321,14 @@ textarea:focus-visible {
 }
 
 .field em {
-  color: var(--accent);
+  color: var(--muted);
   font-style: normal;
 }
 
 input,
 textarea {
   background: transparent;
-  border: 1px solid var(--accent);
+  border: 1px solid var(--muted);
   padding: 10px;
   resize: vertical;
   border-radius: 0;
@@ -269,7 +336,7 @@ textarea {
 
 .counter {
   font-size: 11px;
-  color: var(--accent);
+  color: var(--muted);
   align-self: flex-end;
 }
 
@@ -288,7 +355,7 @@ textarea {
 
 .chip,
 .tag {
-  border: 1px solid var(--accent);
+  border: 1px solid var(--muted);
   background: transparent;
   padding: 7px 10px;
   font-size: 12px;
@@ -298,7 +365,7 @@ textarea {
 
 .chip[aria-pressed="true"],
 .chip.is-open {
-  border-color: var(--fg);
+  border-color: var(--accent);
 }
 
 .tag {
@@ -310,7 +377,7 @@ textarea {
 .tag button {
   border: 0;
   background: none;
-  color: var(--accent);
+  color: var(--muted);
   cursor: pointer;
   padding: 0;
 }
@@ -327,10 +394,10 @@ textarea {
   top: 8vh;
   right: 3vw;
   width: min(320px, 28vw);
-  z-index: 4;
-  border: 1px solid var(--accent);
+  z-index: 8;
+  border: 1px solid var(--muted);
   padding: 16px;
-  background: rgba(32, 34, 36, 0.86);
+  background: rgba(243, 241, 236, 0.92);
   pointer-events: auto;
 }
 
@@ -340,17 +407,25 @@ textarea {
 
 .filter-note {
   font-size: 12px;
-  color: var(--accent);
+  color: var(--muted);
 }
 
 .inspect-card {
   pointer-events: none;
+  position: fixed;
+  z-index: 5;
   max-width: 280px;
-  border: 1px solid var(--accent);
+  border: 1px solid var(--muted);
   padding: 12px 14px;
   font-size: 12px;
-  background: rgba(32, 34, 36, 0.9);
-  margin-top: 8px;
+  background: rgba(243, 241, 236, 0.94);
+}
+
+.inspect-card .inspect-platform {
+  margin: 0 0 8px;
+  letter-spacing: 0.22em;
+  font-size: 11px;
+  color: var(--fg);
 }
 
 .inspect-card p {
@@ -363,13 +438,14 @@ textarea {
 }
 
 .search-sub {
-  color: var(--accent);
+  color: var(--muted);
   font-size: 12px;
 }
 
 .preview-stage {
-  min-height: 280px;
-  border: 1px solid var(--accent);
+  min-height: 360px;
+  height: 360px;
+  border: 1px solid var(--muted);
   margin: 0 0 1.2rem;
   position: relative;
   overflow: hidden;
@@ -378,16 +454,36 @@ textarea {
 .confidence {
   font-size: 12px;
   letter-spacing: 0.16em;
-  color: var(--accent);
+  color: var(--muted);
   text-transform: uppercase;
 }
 
 .preview-complete,
 .preview-fragmented,
 .preview-similar,
-.preview-inaccessible {
-  height: 320px;
+.preview-inaccessible,
+.preview-visual {
+  height: 360px;
   position: relative;
+  background: #e7e3db;
+}
+
+.pv-canvas,
+.cand-art {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.fail-caption {
+  position: absolute;
+  top: 14px;
+  left: 16px;
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+  text-transform: uppercase;
 }
 
 .pv-frame {
@@ -408,7 +504,7 @@ textarea {
 
 .pv-tile {
   position: absolute;
-  border: 1px solid var(--accent);
+  border: 1px solid var(--muted);
   background: rgba(243, 241, 236, 0.04);
 }
 
@@ -417,7 +513,7 @@ textarea {
     45deg,
     transparent,
     transparent 4px,
-    rgba(96, 119, 132, 0.35) 5px
+    rgba(196, 196, 196, 0.35) 5px
   );
 }
 
@@ -440,7 +536,7 @@ textarea {
 .chat-lines {
   padding: 24px;
   font-size: 12px;
-  color: var(--accent);
+  color: var(--muted);
 }
 
 .cand {
@@ -448,7 +544,7 @@ textarea {
   grid-template-columns: repeat(3, 1fr);
   gap: 1px;
   height: 100%;
-  background: var(--accent);
+  background: var(--muted);
 }
 
 .cand button {
@@ -456,7 +552,26 @@ textarea {
   background: var(--bg);
   cursor: pointer;
   text-align: left;
-  padding: 16px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.cand button[aria-pressed="true"] .cand-art {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.cand-art {
+  flex: 1;
+  min-height: 0;
+  height: auto;
+  background: #dcd7cd;
+}
+
+.cand-meta {
+  display: block;
+  padding: 12px 14px 14px;
 }
 
 .cand .pct {
@@ -475,7 +590,7 @@ textarea {
 .empty-frame {
   position: absolute;
   inset: 20% 28%;
-  border: 1px dashed var(--accent);
+  border: 1px dashed var(--muted);
 }
 
 .lock {
@@ -500,7 +615,7 @@ textarea {
   right: 16px;
   font-size: 11px;
   letter-spacing: 0.14em;
-  color: var(--accent);
+  color: var(--muted);
 }
 
 .broken-path {
@@ -535,7 +650,7 @@ textarea {
   grid-template-columns: 180px 1fr;
   gap: 12px;
   padding: 5px 0;
-  border-top: 1px solid rgba(96, 119, 132, 0.45);
+  border-top: 1px solid rgba(196, 196, 196, 0.45);
   font-size: 11px;
 }
 
@@ -547,11 +662,11 @@ textarea {
 .rc-sub {
   margin: 4px 0 16px;
   font-size: 11px;
-  color: var(--accent);
+  color: var(--muted);
 }
 
 .rc-k {
-  color: var(--accent);
+  color: var(--muted);
 }
 
 .rc-final {
@@ -594,6 +709,7 @@ textarea {
   #scanlines,
   .ui,
   .back-btn,
+  .reset-view-btn,
   .filter-panel,
   .receipt-actions {
     display: none !important;
@@ -633,6 +749,11 @@ textarea {
     left: 32px;
   }
 
+  .reset-view-btn {
+    top: 24px;
+    left: 164px;
+  }
+
   .scene {
     padding-left: 10vw;
   }
@@ -646,6 +767,11 @@ textarea {
   .back-btn {
     top: 12px;
     left: 12px;
+  }
+
+  .reset-view-btn {
+    top: 12px;
+    left: 128px;
   }
 
   .filter-panel {

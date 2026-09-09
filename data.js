@@ -1,5 +1,7 @@
 const PLATFORMS = [
   "WeChat",
+  "WhatsApp",
+  "Messages",
   "QQ",
   "Photos",
   "Cloud",
@@ -26,7 +28,8 @@ const CLUE_TYPES = [
   { id: "location", label: "Location" },
   { id: "fileType", label: "File Type" },
   { id: "platform", label: "Platform" },
-  { id: "keyword", label: "Keyword" }
+  { id: "keyword", label: "Keyword" },
+  { id: "custom", label: "Custom" }
 ];
 
 const CLUE_OPTIONS = {
@@ -143,6 +146,7 @@ function countActiveClues(clues) {
     const v = clues[c.id];
     if (!v) return;
     if (c.id === "keyword" && charCount(v) < 1) return;
+    if (c.id === "custom" && charCount(v) < 1) return;
     if (v === "Uncertain" || v === "Unknown" || v === "Cannot remember") return;
     n += 1;
   });
@@ -196,7 +200,8 @@ function weightedMainState(state) {
   if (cluesConflict(memory, clues)) scores.inaccessible += 24;
 
   const oldTime = clues.time === "Before 2015" || clues.time === "2015–2018";
-  if (clues.platform === "WeChat" && oldTime) {
+  const oldChat = clues.platform === "WeChat" || clues.platform === "WhatsApp";
+  if (oldChat && oldTime) {
     scores.inaccessible += 36;
   }
   if ((memory && memory.id === "link") || clues.fileType === "Link" || clues.platform === "Browser") {
@@ -229,7 +234,7 @@ function pickSubtype(main, state, flags) {
   const clues = state.selectedClues || {};
   const memory = state.selectedMemory;
   if (main === "inaccessible") {
-    if (clues.platform === "WeChat" && flags.oldTime) return "Content Expired";
+    if ((clues.platform === "WeChat" || clues.platform === "WhatsApp") && flags.oldTime) return "Content Expired";
     if (clues.platform === "Browser" || (memory && memory.id === "link") || clues.fileType === "Link") {
       return "Link Invalid";
     }
@@ -269,15 +274,110 @@ function sourceFor(state, main) {
   return pick(PLATFORMS);
 }
 
-function similarCandidates(state, source) {
+function visualPromptText(state) {
+  const clues = state.selectedClues || {};
+  const mem = state.selectedMemory || {};
+  return [clues.keyword, clues.custom, clues.person, clues.location, mem.label, mem.id, state.personalSignificance]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function visualThemeFor(state) {
+  const clues = state.selectedClues || {};
+  const t = visualPromptText(state).toLowerCase();
+  if (clues.person === "Classmate" || clues.location === "School") return "school";
+  if (clues.person === "Family" || clues.location === "Home") return "family";
+  if (clues.person === "Colleague" || clues.location === "Workplace") return "work";
+  if (clues.person === "Friend") return "friends";
+  if (clues.person === "Myself") return "self";
+  if (/classmate|classmates|同学|同班|班集体|classroom|教室|校园|学校|school|campus|毕业|yearbook|校服/.test(t)) {
+    return "school";
+  }
+  if (/family|家人|父母|妈妈|爸爸|家里|团聚/.test(t)) return "family";
+  if (/friend|friends|朋友|好友/.test(t)) return "friends";
+  if (/colleague|同事|办公室|office|workplace|工位/.test(t)) return "work";
+  if (/myself|自己|自拍|solo/.test(t)) return "self";
+  if (/voice|声音|audio|waveform|语音/.test(t)) return "sound";
+  if (/city|城市|another city/.test(t) || clues.location === "Another city") return "city";
+  return "default";
+}
+
+function visualRoleFor(subtype, outcome) {
+  if (outcome === "inaccessible") return "damage";
+  if (subtype === "Similar Scene") return "scene";
+  if (
+    subtype === "Thumbnail Only" ||
+    subtype === "Compressed Copy" ||
+    subtype === "Damaged File" ||
+    subtype === "Partial Image" ||
+    subtype === "Link Invalid" ||
+    subtype === "Content Not Found"
+  ) {
+    return "damage";
+  }
+  return "people";
+}
+
+function mediaKindFor(state) {
+  const mem = state.selectedMemory || {};
+  const clues = state.selectedClues || {};
+  const ft = clues.fileType;
+  const theme = visualThemeFor(state);
+  if (mem.id === "voice" || ft === "Voice" || theme === "sound") return "sound";
+  if (mem.id === "conversation" || ft === "Chat") return "chat";
+  if (mem.id === "link" || ft === "Link") return "link";
+  if (theme === "school" || theme === "family" || theme === "friends" || theme === "work" || theme === "self") {
+    return "person";
+  }
+  if (clues.person && clues.person !== "Cannot remember") return "person";
+  if (mem.id === "photograph" || ft === "Photo" || ft === "Video") return "photo";
+  return "photo";
+}
+
+function visualKindFor(mediaKind, mainState, subtype, theme) {
+  if (mediaKind === "sound" || subtype === "Audio Without Context") return "sound";
+  if (mediaKind === "chat" || subtype === "Missing Chat History") return "chat";
+  if (mainState === "inaccessible") {
+    if (mediaKind === "sound") return "sound";
+    if (theme && theme !== "default") return "person";
+    return "failed";
+  }
+  if (theme && theme !== "default") {
+    return subtype === "Similar Scene" ? "photo" : "person";
+  }
+  if (subtype === "Same Person, Different Time" || mediaKind === "person") return "person";
+  if (
+    subtype === "Thumbnail Only" ||
+    subtype === "Compressed Copy" ||
+    subtype === "Partial Image" ||
+    subtype === "Damaged File"
+  ) {
+    return "mosaic";
+  }
+  if (mediaKind === "link" && mainState !== "complete") return "failed";
+  return "photo";
+}
+
+function similarCandidates(state, source, mediaKind, seed) {
+  const theme = visualThemeFor(state);
   const subtypes = RESULT_CATALOG.similar.subtypes.slice();
+  if (mediaKind === "person") {
+    subtypes.sort((a, b) => (a === "Same Person, Different Time" ? -1 : b === "Same Person, Different Time" ? 1 : 0));
+  }
   const base = 58 + Math.floor(Math.random() * 18);
-  return [0, 1, 2].map((i) => ({
-    id: `cand-${i}`,
-    subtype: subtypes[(i + subtypes.length - 1) % subtypes.length],
-    similarity: clamp(base - i * (8 + Math.floor(Math.random() * 7)), 22, 94),
-    source: i === 0 ? source : pick(PLATFORMS)
-  }));
+  return [0, 1, 2].map((i) => {
+    const subtype = subtypes[i % subtypes.length];
+    return {
+      id: `cand-${i}`,
+      subtype,
+      similarity: clamp(base - i * (8 + Math.floor(Math.random() * 7)), 22, 94),
+      source: i === 0 ? source : pick(PLATFORMS),
+      visualKind: visualKindFor(mediaKind, "similar", subtype, theme),
+      visualRole: visualRoleFor(subtype, "similar"),
+      visualTheme: theme,
+      visualSeed: (seed + i * 9973) >>> 0
+    };
+  });
 }
 
 function determineOutcome(state) {
@@ -290,6 +390,9 @@ function determineOutcome(state) {
   const accuracy = countActiveClues(state.selectedClues || {});
   const source = sourceFor(state, main);
   const confidence = confidenceFor(main, accuracy, state.searchMode);
+  const mediaKind = mediaKindFor(state);
+  const visualTheme = visualThemeFor(state);
+  const visualSeed = Math.floor(Math.random() * 1e9);
   const result = {
     mainState: main,
     mainLabel: catalog.label,
@@ -300,7 +403,12 @@ function determineOutcome(state) {
     suggestedNextAction: NEXT_ACTIONS[main],
     finalMessage: catalog.finalMessage,
     platformsSearched: derivePlatforms(state.selectedClues || {}, state.searchMode),
-    candidates: main === "similar" ? similarCandidates(state, source) : null,
+    mediaKind,
+    visualTheme,
+    visualRole: visualRoleFor(subtype, main),
+    visualKind: visualKindFor(mediaKind, main, subtype, visualTheme),
+    visualSeed,
+    candidates: main === "similar" ? similarCandidates(state, source, mediaKind, visualSeed) : null,
     selectedCandidate: null
   };
   return result;
@@ -329,6 +437,14 @@ function nodeMatchesClues(node, clues) {
   if (clues.keyword && charCount(clues.keyword)) {
     checks += 1;
     if ((node.keyword || "").toLowerCase().includes(clues.keyword.toLowerCase())) score += 1;
+  }
+  if (clues.custom && charCount(clues.custom)) {
+    checks += 1;
+    const q = clues.custom.toLowerCase();
+    const hay = [node.keyword, node.platform, node.person, node.location, node.fileType, node.date]
+      .join(" ")
+      .toLowerCase();
+    if (hay.includes(q)) score += 1;
   }
   if (!checks) return true;
   return score >= Math.ceil(checks * 0.5);

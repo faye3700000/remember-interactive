@@ -85,7 +85,7 @@ const Receipt = {
       throw new Error("Receipt preview is not ready.");
     }
     const canvas = await html2canvas(card, {
-      backgroundColor: "#202224",
+      backgroundColor: "#F3F1EC",
       scale: 2,
       useCORS: true
     });
