@@ -1,7 +1,7 @@
 :root {
   --bg: #f3f1ec;
   --fg: #000000;
-  --muted: #c4c4c4;
+  --muted: #7a7a7a;
   --accent: #dd9c33;
   --font: "IBM Plex Mono", "SFMono-Regular", "Menlo", monospace;
 }
@@ -225,10 +225,14 @@ body.map-exploring #canvas-wrap.is-panning {
 
 .idle-title {
   margin: 0;
-  font-weight: 400;
-  letter-spacing: 0.55em;
-  font-size: clamp(28px, 5vw, 64px);
-  opacity: 0.88;
+  line-height: 0;
+}
+
+.idle-title img {
+  display: block;
+  width: min(92vw, 1180px);
+  height: auto;
+  margin-inline: auto;
 }
 
 .idle-hint {

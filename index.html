@@ -4,7 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Remember</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta name="apple-mobile-web-app-title" content="Remember" />
+  <link rel="stylesheet" href="style.css?v=muted-darker" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.11.3/p5.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
@@ -16,8 +17,10 @@
   <main id="ui" class="ui">
     <button type="button" id="back-btn" class="back-btn" hidden aria-label="Back">← BACK</button>
     <section id="scene-1" class="scene scene-idle is-active" data-scene="1" aria-label="Idle">
-      <h1 class="idle-title">REMEMBER</h1>
-      <p class="idle-hint">Move closer to begin.</p>
+      <h1 class="idle-title">
+        <img src="assets/remember-wordmark.png?v=3" alt="Remember" />
+      </h1>
+      <p class="idle-hint">Click anywhere to begin.</p>
     </section>
 
     <section id="scene-2" class="scene" data-scene="2" hidden>
